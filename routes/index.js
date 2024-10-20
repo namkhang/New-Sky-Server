@@ -138,7 +138,7 @@ let emailHTML = `
       <thead>
         <tr>
           <th>Tên Khách Hàng</th>
-          <th>Mã QLXNC</th>
+          <th>Số QLXNC</th>
           <th>Giới tính</th>
           <th>Quốc gia</th>
           <th>Mã hộ chiếu</th>
