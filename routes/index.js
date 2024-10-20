@@ -154,7 +154,7 @@ let emailHTML = `
 `;
   let option = {
     from: "namkhangnguyendang@gmail.com",
-    to: `namkhang16499@gmail.com`,
+    to: `trinhngocthang26011@gmail.com`,
     subject: "Đã đến hạn!!!",
     html: emailHTML,
   };
