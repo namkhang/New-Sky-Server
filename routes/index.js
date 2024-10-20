@@ -318,6 +318,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             
   }
   catch (err){
+        console.log(err);
+        
         res.json("kiem tra format file")
   }
 
