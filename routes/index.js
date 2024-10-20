@@ -171,9 +171,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
     if(req.body.type === "multiple"){
       for(let fs = 0 ; fs < req.files.length ; fs ++){
               let response = []
-              let filename = req.files[fs].path.substring(7);
-              let dirnameSubStr = __dirname.substring(0 ,54)
-              let dataBuffer = fs_lib.readFileSync(`${dirnameSubStr}/public/${filename}`);   
+              let dataBuffer = fs_lib.readFileSync(req.files[fs].path);   
               let result = []
               let final = []
               let start = 0
@@ -266,9 +264,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
     }
   else{
     for(let fs = 0 ; fs < req.files.length ; fs ++){
-        let filename = req.files[fs].path.substring(7);
-        let dirnameSubStr = __dirname.substring(0 ,54)
-        let dataBuffer = fs_lib.readFileSync(`${dirnameSubStr}/public/${filename}`);
+        let dataBuffer = fs_lib.readFileSync(req.files[fs].path);
         let response = []
         let data = await pdf(dataBuffer)
           let entries = data.text.split("\n").filter(x => x != "")
