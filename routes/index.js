@@ -177,7 +177,7 @@ let emailHTML = `
 `;
   let option = {
     from: "namkhangnguyendang@gmail.com",
-    to: `trinhngocthang26011@gmail.com`,
+    to: `trinhngocthang26011@gmail.com,hoaithanh2005ht@gmail.com,trangdt0701@gmail.com,Danghongtham1505@gmail.com`,
     subject: "Đã đến hạn!!!",
     html: emailHTML,
   };
@@ -222,6 +222,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             
     
         result.splice(0 , 1)
+        
               
               for(let it  = 0 ; it < result.length ; it++){
                     let format = [...result[it]]
@@ -256,6 +257,21 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                     
                     
               }
+
+              final = final.filter(i => i.name.length > 0)
+              for(let c = 0 ; c < final.length ; c ++){              
+                  if(Object.keys(final[c]).length === 5){
+                    final[c].start_date = final[c - 1].start_date
+                    final[c].end_date = final[c - 1].end_date
+                    console.log(final[c]);
+                    
+                  }
+                  else{
+                      continue
+                  }
+              }
+               
+              
               for(let i = 0 ; i < final.length ; i++){
                     for(let j = 0 ; j < final[i].name.length ; j++){
                       let remainingDate = Math.ceil((new Date(final[i].end_date.split("/")[2] , parseInt(final[i].end_date.split("/")[1]) - 1 , final[i].end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
@@ -285,7 +301,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
         res.json(dataRes);
    
     }
-  else{
+  else if (req.body.type === "single"){
     for(let fs = 0 ; fs < req.files.length ; fs ++){
         let dataBuffer = fs_lib.readFileSync(req.files[fs].path);
         let response = []
@@ -331,6 +347,10 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
 
         res.json(dataRes);
 
+      }
+      else{
+          console.log("vao đây");
+          
       }
 
             
