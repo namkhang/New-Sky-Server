@@ -94,8 +94,8 @@ let warningRow = warning.map(wn =>
     <td style="background-color: red;">${wn.gender}</td>
     <td style="background-color: red;">${wn.country}</td>
     <td style="background-color: red;">${wn.flightcode}</td>
-    td style="background-color: red;">${wn.start_date}</td>
-    td style="background-color: red;">${wn.end_date}</td>
+    <td style="background-color: red;">${wn.start_date}</td>
+    <td style="background-color: red;">${wn.end_date}</td>
     <td style="background-color: red;">${wn.remainingDate}</td>
   </tr>
 `
@@ -222,7 +222,14 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             
     
         result.splice(0 , 1)
-        
+
+       for(let c2 = 0 ; c2 < result.length ; c2 ++){        
+        if(result[c2].filter(i => i.includes("Male") || i.includes("Female"))[0].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/) === null){
+            let index = result[c2].findIndex(i => i.includes("Male") || i.includes("Female"))
+            
+            result[c2][index] = `${result[c2][index]} ${result[c2][index + 1]}${result[c2][index+2]}`
+        }
+       }
               
               for(let it  = 0 ; it < result.length ; it++){
                     let format = [...result[it]]
