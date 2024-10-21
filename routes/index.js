@@ -230,6 +230,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             result[c2][index] = `${result[c2][index]} ${result[c2][index + 1]}${result[c2][index+2]}`
         }
        }
+
+       
               
               for(let it  = 0 ; it < result.length ; it++){
                     let format = [...result[it]]
@@ -246,13 +248,26 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                               userInfor["end_date"] = format[it].match(/(\d{2}\/\d{2}\/\d{4})\s+to\s+(\d{2}\/\d{2}\/\d{4})/)[2]
                             }
                             else if (format[it] === format[it].toUpperCase()){
-                              name.push(format[it])
+                                      if(isNaN(Number(format[it])) === true){
+                                          if(format[it + 1] === format[it + 1].toUpperCase()){
+                                            
+                                            name.push(`${format[it]} ${format[it + 1]}`)
+                                            format.splice(it + 1,1)
+                                          }
+                                          else{
+                                            name.push(`${format[it]}`)
+                                          }
+                                            
+                                      }
+                                      else{
+                                        continue
+                                      }
                             }
-                            else{
-                              gender.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/)[1])
-                              dayofbirth.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/)[2])
-                              country.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/)[3])
-                              flightcode.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/)[4])
+                            else{                              
+                              gender.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[1])
+                              dayofbirth.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[2])
+                              country.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[3])
+                              flightcode.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[4])
                             }
                     }
                     userInfor["name"] = name
@@ -264,6 +279,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                     
                     
               }
+              
 
               final = final.filter(i => i.name.length > 0)
               for(let c = 0 ; c < final.length ; c ++){              
@@ -285,7 +301,9 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                         response.push({name : final[i].name[j] , ref_number : refNumber, gender : final[i].gender[j] , dayofbirth : final[i].dayofbirth[j] ,country : final[i].country[j],flightcode : final[i].flightcode[j], start_date :  final[i].start_date, end_date :  final[i].end_date  , remainingDate})
                     }
               }
+              
 
+              
 
               for(let e = 0 ; e < response.length ; e++){
                 await db.Immigration.create({name : response[e].name ,ref_number : refNumber,  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
