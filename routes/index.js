@@ -67,7 +67,7 @@ router.get('/send-mail', async function(req, res, next) {
   data.forEach(it => {
     let remainingDate = Math.ceil((new Date(it.end_date.split("/")[2] , parseInt(it.end_date.split("/")[1]) - 1 , it.end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
     if(remainingDate <= 15){
-          warning.push({name : it.name , ref_number : it.ref_number, gender : it.gender, country : it.country, flightcode : it.flightcode, remainingDate})
+          warning.push({name : it.name , ref_number : it.ref_number, gender : it.gender, country : it.country, flightcode : it.flightcode, start_date : it.start_date , end_date : it.end_date ,remainingDate})
     }
   })
 
