@@ -37,9 +37,9 @@ router.get('/get-passenger', async function(req, res, next) {
 router.get('/daily-update', async function(req, res, next) {
   let now = new Date()
   let data = await db.Immigration.find()
-  data.forEach(async i => {
-    await db.Immigration.updateOne({_id : i._id} , {remainingDate : Math.ceil((new Date(i.end_date.split("/")[2] , parseInt(i.end_date.split("/")[1]) - 1 , i.end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) }) 
-  })
+  for(let i = 0 ; i < data.length ; i ++){
+    await db.Immigration.updateOne({_id : data[i]._id} , {remainingDate : Math.ceil((new Date(data[i].end_date.split("/")[2] , parseInt(data[i].end_date.split("/")[1]) - 1 , data[i].end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) }) 
+  }
   res.json("success")
 
 
@@ -67,7 +67,7 @@ router.get('/send-mail', async function(req, res, next) {
   data.forEach(it => {
     let remainingDate = Math.ceil((new Date(it.end_date.split("/")[2] , parseInt(it.end_date.split("/")[1]) - 1 , it.end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
     if(remainingDate <= 15){
-          warning.push({name : it.name , ref_number : it.ref_number,cv_cdoe : it.cv_code ,  gender : it.gender, country : it.country, flightcode : it.flightcode, start_date : it.start_date , end_date : it.end_date ,remainingDate})
+          warning.push({name : it.name , ref_number : it.ref_number,cv_code : it.cv_code ,  gender : it.gender, country : it.country, flightcode : it.flightcode, start_date : it.start_date , end_date : it.end_date ,remainingDate})
     }
   })
 
