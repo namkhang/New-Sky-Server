@@ -222,6 +222,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             
     
         result.splice(0 , 1)
+        
 
        for(let c2 = 0 ; c2 < result.length ; c2 ++){        
         if(result[c2].filter(i => i.includes("Male") || i.includes("Female"))[0].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/) === null){
@@ -301,6 +302,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                         response.push({name : final[i].name[j] , ref_number : refNumber, gender : final[i].gender[j] , dayofbirth : final[i].dayofbirth[j] ,country : final[i].country[j],flightcode : final[i].flightcode[j], start_date :  final[i].start_date, end_date :  final[i].end_date  , remainingDate})
                     }
               }
+
+              
               
 
               
