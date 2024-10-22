@@ -18,7 +18,9 @@ var Immigration= new Schema({
     flightcode : String,
     start_date : String,
     end_date : String,
-    remainingDate : Number
+    cv_code : String,
+    remainingDate : Number,
+    createAt : Date
     
 })
 

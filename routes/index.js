@@ -20,7 +20,7 @@ router.get('/get-passenger', async function(req, res, next) {
     let data = await db.Immigration.aggregate([
       {
         $group: {
-          _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
+          _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,cv_code : "$cv_code",  createAt : "$createAt",  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
           doc: { $first: "$$ROOT" } 
         }
       },
@@ -55,7 +55,7 @@ router.get('/send-mail', async function(req, res, next) {
   let data = await db.Immigration.aggregate([
     {
       $group: {
-        _id: { name: "$name",ref_number : "$ref_number", gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" }, 
+        _id: { name: "$name",ref_number : "$ref_number", cv_code : "$cv_code", gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,cv_code : "$cv_code",  createAt : "$createAt", }, 
         doc: { $first: "$$ROOT" } 
       }
     },
@@ -67,7 +67,7 @@ router.get('/send-mail', async function(req, res, next) {
   data.forEach(it => {
     let remainingDate = Math.ceil((new Date(it.end_date.split("/")[2] , parseInt(it.end_date.split("/")[1]) - 1 , it.end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
     if(remainingDate <= 15){
-          warning.push({name : it.name , ref_number : it.ref_number, gender : it.gender, country : it.country, flightcode : it.flightcode, start_date : it.start_date , end_date : it.end_date ,remainingDate})
+          warning.push({name : it.name , ref_number : it.ref_number,cv_cdoe : it.cv_code ,  gender : it.gender, country : it.country, flightcode : it.flightcode, start_date : it.start_date , end_date : it.end_date ,remainingDate})
     }
   })
 
@@ -91,6 +91,7 @@ let warningRow = warning.map(wn =>
   <tr>
     <td style="background-color: red;">${wn.name}</td>
     <td style="background-color: red;">${wn.ref_number}</td>
+    <td style="background-color: red;">${wn.cv_code}</td>
     <td style="background-color: red;">${wn.gender}</td>
     <td style="background-color: red;">${wn.country}</td>
     <td style="background-color: red;">${wn.flightcode}</td>
@@ -105,6 +106,7 @@ let warningRow = warning.map(wn =>
   <tr>
     <td style="background-color: yellow;">${wn.name}</td>
     <td style="background-color: yellow;">${wn.ref_number}</td>
+    <td style="background-color: yellow;">${wn.cv_code}</td>
     <td style="background-color: yellow;">${wn.gender}</td>
     <td style="background-color: yellow;">${wn.country}</td>
     <td style="background-color: yellow;">${wn.flightcode}</td>
@@ -118,6 +120,7 @@ let warningRow = warning.map(wn =>
   <tr>
     <td>${wn.name}</td>
     <td>${wn.ref_number}</td>
+    <td>${wn.cv_code}</td>
     <td">${wn.gender}</td>
     <td">${wn.country}</td> 
     <td>${wn.flightcode}</td>
@@ -160,6 +163,7 @@ let emailHTML = `
         <tr>
           <th>Tên Khách Hàng</th>
           <th>Số QLXNC</th>
+          <th>Mã công văn</th>
           <th>Giới tính</th>
           <th>Quốc gia</th>
           <th>Mã hộ chiếu</th>
@@ -201,6 +205,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
               let data = await pdf(dataBuffer)        
               let entries = data.text.split("\n").filter(x => x != "")
               let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()
+              let cv_code = entries.filter(i => i.includes("response to the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+              
               for(let i = 0 ; i < entries.length ; i ++){
                     if ( i == entries.length - 1){
                       break
@@ -222,12 +228,14 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
             
     
         result.splice(0 , 1)
+        result = result.filter(i => i.length > 5)
         
 
-       for(let c2 = 0 ; c2 < result.length ; c2 ++){        
+       for(let c2 = 0 ; c2 < result.length ; c2 ++){
+
+        
         if(result[c2].filter(i => i.includes("Male") || i.includes("Female"))[0].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?)([A-Z]*\d+)/) === null){
             let index = result[c2].findIndex(i => i.includes("Male") || i.includes("Female"))
-            
             result[c2][index] = `${result[c2][index]} ${result[c2][index + 1]}${result[c2][index+2]}`
         }
        }
@@ -287,7 +295,6 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                   if(Object.keys(final[c]).length === 5){
                     final[c].start_date = final[c - 1].start_date
                     final[c].end_date = final[c - 1].end_date
-                    console.log(final[c]);
                     
                   }
                   else{
@@ -301,15 +308,10 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                       let remainingDate = Math.ceil((new Date(final[i].end_date.split("/")[2] , parseInt(final[i].end_date.split("/")[1]) - 1 , final[i].end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
                         response.push({name : final[i].name[j] , ref_number : refNumber, gender : final[i].gender[j] , dayofbirth : final[i].dayofbirth[j] ,country : final[i].country[j],flightcode : final[i].flightcode[j], start_date :  final[i].start_date, end_date :  final[i].end_date  , remainingDate})
                     }
-              }
-
-              
-              
-
-              
+              } 
 
               for(let e = 0 ; e < response.length ; e++){
-                await db.Immigration.create({name : response[e].name ,ref_number : refNumber,  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
+                await db.Immigration.create({name : response[e].name ,ref_number : refNumber,cv_code ,  createAt : new Date(),   gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
               
               } 
               
@@ -318,7 +320,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
          let dataRes =  await db.Immigration.aggregate([
           {
             $group: {
-              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate: "$remainingDate" }, 
+              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" , cv_code : "$cv_code",  createAt : "$createAt", dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate: "$remainingDate" }, 
               doc: { $first: "$$ROOT" } 
             }
           },
@@ -336,7 +338,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
         let data = await pdf(dataBuffer)
           let entries = data.text.split("\n").filter(x => x != "")
           let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()
-          
+          let cv_code = entries.filter(i => i.includes("response to the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+
           let start = entries.findIndex(i => i.includes("requesting permission granted"))
           if(!entries[start + 1].includes("follows")){
                 let start_date =  entries[start + 7].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[1]
@@ -344,7 +347,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                 let remainingDate = Math.ceil((new Date(end_date.split("/")[2] , parseInt(end_date.split("/")[1]) - 1 , end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24))
                 response.push({name : entries[start + 3] ,ref_number : refNumber,  gender : entries[start + 11].trim().split(" ")[1] === "Bà" ? "Female" : "Male" , dayofbirth : entries[start + 4].trim().split(":")[1] ,  country : entries[start + 5].trim().split(":")[1] , flightcode : entries[start + 6].trim().split(":")[1], start_date , end_date , remainingDate })
                 for(let e = 0 ; e < response.length ; e++){
-                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
+                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
                 }
 
           }
@@ -354,7 +357,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                 let remainingDate = Math.ceil((new Date(end_date.split("/")[2] , parseInt(end_date.split("/")[1]) - 1 , end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24))
                 response.push({name : entries[start + 2] , gender : entries[start + 10].trim().split(" ")[1] === "Bà" ? "Female" : "Male" , dayofbirth : entries[start + 3].trim().split(":")[1] , country : entries[start + 4].trim().split(":")[1] , flightcode : entries[start + 5].trim().split(":")[1], start_date , end_date, remainingDate})
                 for(let e = 0 ; e < response.length ; e++){
-                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
+                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
                 }
                
           }  
@@ -364,7 +367,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
         let dataRes =  await db.Immigration.aggregate([
           {
             $group: {
-              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate : "$remainingDate" }, 
+              _id: { name: "$name",ref_number : "$ref_number", cv_code : "$cv_code",  createAt : "$createAt", gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate : "$remainingDate" }, 
               doc: { $first: "$$ROOT" } 
             }
           },
