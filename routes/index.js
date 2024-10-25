@@ -20,7 +20,7 @@ router.get('/get-passenger', async function(req, res, next) {
     let data = await db.Immigration.aggregate([
       {
         $group: {
-          _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,cv_code : "$cv_code",  createAt : "$createAt",  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
+          _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,cv_code : "$cv_code",  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
           doc: { $first: "$$ROOT" } 
         }
       },
@@ -320,7 +320,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
          let dataRes =  await db.Immigration.aggregate([
           {
             $group: {
-              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" , cv_code : "$cv_code",  createAt : "$createAt", dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate: "$remainingDate" }, 
+              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" , cv_code : "$cv_code", dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate: "$remainingDate" }, 
               doc: { $first: "$$ROOT" } 
             }
           },
@@ -334,40 +334,34 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
   else if (req.body.type === "single"){
     for(let fs = 0 ; fs < req.files.length ; fs ++){
         let dataBuffer = fs_lib.readFileSync(req.files[fs].path);
-        let response = []
         let data = await pdf(dataBuffer)
           let entries = data.text.split("\n").filter(x => x != "")
           let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()
-          let cv_code = entries.filter(i => i.includes("response to the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+          let cv_code = entries.filter(i => i.includes("the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+          
 
           let start = entries.findIndex(i => i.includes("requesting permission granted"))
           if(!entries[start + 1].includes("follows")){
                 let start_date =  entries[start + 7].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[1]
                 let end_date = entries[start + 7].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[2]
                 let remainingDate = Math.ceil((new Date(end_date.split("/")[2] , parseInt(end_date.split("/")[1]) - 1 , end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24))
-                response.push({name : entries[start + 3] ,ref_number : refNumber,  gender : entries[start + 11].trim().split(" ")[1] === "Bà" ? "Female" : "Male" , dayofbirth : entries[start + 4].trim().split(":")[1] ,  country : entries[start + 5].trim().split(":")[1] , flightcode : entries[start + 6].trim().split(":")[1], start_date , end_date , remainingDate })
-                for(let e = 0 ; e < response.length ; e++){
-                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
-                }
+                await db.Immigration.create({name : entries[start + 3] ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender : entries[start + 11].trim().split(" ")[1] === "Bà" ? "Female" : "Male" , dayofbirth : entries[start + 4].trim().split(":")[1] , country : entries[start + 5].trim().split(":")[1]  ,flightcode : entries[start + 6].trim().split(":")[1], start_date , end_date, remainingDate})
 
           }
           else{
                 let start_date =  entries[start + 6].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[1]
                 let end_date = entries[start + 6].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[2]
                 let remainingDate = Math.ceil((new Date(end_date.split("/")[2] , parseInt(end_date.split("/")[1]) - 1 , end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24))
-                response.push({name : entries[start + 2] , gender : entries[start + 10].trim().split(" ")[1] === "Bà" ? "Female" : "Male" , dayofbirth : entries[start + 3].trim().split(":")[1] , country : entries[start + 4].trim().split(":")[1] , flightcode : entries[start + 5].trim().split(":")[1], start_date , end_date, remainingDate})
-                for(let e = 0 ; e < response.length ; e++){
-                  await db.Immigration.create({name : response[e].name ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
-                }
+                await db.Immigration.create({name : entries[start + 2] ,ref_number : refNumber,cv_code ,  createAt : new Date(),  gender :  entries[start + 10].trim().split(" ")[1] === "Bà" ? "Female" : "Male", dayofbirth :entries[start + 3].trim().split(":")[1], country : entries[start + 4].trim().split(":")[1] ,flightcode : entries[start + 5].trim().split(":")[1], start_date , end_date , remainingDate})
                
-          }  
+          }   
 }
 
       
         let dataRes =  await db.Immigration.aggregate([
           {
             $group: {
-              _id: { name: "$name",ref_number : "$ref_number", cv_code : "$cv_code",  createAt : "$createAt", gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate : "$remainingDate" }, 
+              _id: { name: "$name",ref_number : "$ref_number", cv_code : "$cv_code", gender: "$gender" ,  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate : "$remainingDate" }, 
               doc: { $first: "$$ROOT" } 
             }
           },
@@ -380,7 +374,167 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
 
       }
       else{
-          console.log("vao đây");
+
+        for(let fs = 0 ; fs < req.files.length ; fs ++){
+          let dataBuffer = fs_lib.readFileSync(req.files[fs].path);   
+          let data = await pdf(dataBuffer)  
+          let entries = data.text.split("\n").filter(x => x != "")
+
+          if(entries.filter(i => i.includes("về việc 01 người nước ngoài nhập cảnh")).length >0){
+            let ref_number = entries.filter(i => i.includes("Số:"))[0].split(":")[1].trim()
+            let cv_code = entries.filter(i => i.includes("Trả lời công văn số"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+            let index = entries.findIndex(i => i.includes("Đồng ý cho"))
+            let join = `${entries[index].trim()} ${entries[index + 1]} ${entries[index + 2]}`
+            let name = join.match(/tên\s([A-Z\s]+),/i)[1].trim()
+            let gender =  join.match(/giới tính\s(\w+),/i)[1]
+            let dayofbirth =  join.match(/ngày sinh\s(\d{2}\/\d{2}\/\d{4}),/i)[1]
+            let country = join.match(/quốc tịch\s(\w+)\s,/i)[1]
+            let flightcode = join.match(/số hộ chiếu\s(\w+),/i)[1]
+            let start_date = join.match(/từ ngày\s(\d{2}\/\d{2}\/\d{4})/i)[1]
+            let end_date = join.match(/đến ngày\s(\d{2}\/\d{2}\/\d{4})/i)[1]
+            let remainingDate = Math.ceil((new Date(end_date.split("/")[2] , parseInt(end_date.split("/")[1]) - 1 ,end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24))
+            await db.Immigration.create({name ,ref_number ,cv_code ,  createAt : new Date(),  gender, dayofbirth , country ,flightcode , start_date , end_date , remainingDate})
+            
+          }
+        else{
+              let now = new Date()
+              for(let fs = 0 ; fs < req.files.length ; fs ++){
+              let response = []
+              let dataBuffer = fs_lib.readFileSync(req.files[fs].path);   
+              let result = []
+              let final = []
+              let start = 0
+              let data = await pdf(dataBuffer)        
+              let entries = data.text.split("\n").filter(x => x != "")
+              let ref_number = entries.filter(i => i.includes("Số:"))[0].split(":")[1].trim()
+              let cv_code = entries.filter(i => i.includes("Trả lời công văn số"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+              
+              for(let i = 0 ; i < entries.length ; i ++){
+                    if ( i == entries.length - 1){
+                      break
+                    }
+                    else{
+                      if (entries[i].toLocaleLowerCase().includes("* đồng ý cho") == true || entries[i].toLocaleLowerCase().includes("CỤC QLXNC".toLocaleLowerCase()) == true ){
+                        
+                        start = i
+                        }
+                      else{
+                            if(entries[i + 1].toLocaleLowerCase().includes("* đồng ý cho") || entries[i + 1].toLocaleLowerCase().includes("CỤC QLXNC".toLocaleLowerCase()) == true ){
+                              
+                              result.push(entries.slice(start , i + 1))
+                            }
+                            else{
+                              continue
+                            }
+                }
+                    }
+        }   
+
+            
+        result.splice(0 , 1)
+        
+        
+              
+              for(let it  = 0 ; it < result.length ; it++){
+                    let format = [...result[it]]
+                    format= format.filter(i => i.includes("đến ngày") || i === i.toUpperCase() && i .includes("QLXNC") === false || i.includes("Female") || i.includes("Male") || i.replace("Việt Nam" , "").includes("Nam") || i.includes("Nữ") )
+                    
+                    for(let fm = 0 ; fm < format.length ; fm ++){
+                      if(format[fm].toUpperCase() === format[fm]){
+                        format[fm + 1] = `${format[fm]}${format[fm + 1]}`
+                        format.splice(fm,1)
+                      }
+                    }
+
+                    console.log(format);
+                    
+                    
+                    
+                    let userInfor = {}
+                    let name = []
+                    let gender = []
+                    let dayofbirth = []
+                    let country = []
+                    let flightcode = []
+                    for(let it = 0 ; it < format.length ; it++){
+                            if(format[it].includes("đến ngày")){
+                              userInfor["start_date"] = format[it].match(/\d{2}\/\d{2}\/\d{4}/g)[0]
+                              userInfor["end_date"] = format[it].match(/\d{2}\/\d{2}\/\d{4}/g)[1]
+                            }
+                            else{       
+                              
+                              name.push(format[it].match(/([A-Z\s]+)(Female|Male|Nam|Nữ)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[1])                       
+                              gender.push(format[it].match(/([A-Z\s]+)(Female|Male|Nam|Nữ)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[2])
+                              dayofbirth.push(format[it].match(/([A-Z\s]+)(Female|Male|Nam|Nữ)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[3])
+                              country.push(format[it].match(/([A-Z\s]+)(Female|Male|Nam|Nữ)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[4])
+                              flightcode.push(format[it].match(/([A-Z\s]+)(Female|Male|Nam|Nữ)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[5])
+                            }
+                    }
+                    userInfor["name"] = name
+                    userInfor["gender"] = gender
+                    userInfor["dayofbirth"] = dayofbirth
+                    userInfor["country"] = country
+                    userInfor["flightcode"] = flightcode
+                    final.push(userInfor)
+                    
+                    
+              }
+
+              
+              
+              
+
+              final = final.filter(i => i.name.length > 0)
+              for(let c = 0 ; c < final.length ; c ++){              
+                  if(Object.keys(final[c]).length === 5){
+                    final[c].start_date = final[c - 1].start_date
+                    final[c].end_date = final[c - 1].end_date
+                    
+                  }
+                  else{
+                      continue
+                  }
+              }
+               
+              
+              for(let i = 0 ; i < final.length ; i++){
+                    for(let j = 0 ; j < final[i].name.length ; j++){
+                      let remainingDate = Math.ceil((new Date(final[i].end_date.split("/")[2] , parseInt(final[i].end_date.split("/")[1]) - 1 , final[i].end_date.split("/")[0]) - now) / (1000 * 60 * 60 * 24)) 
+                        response.push({name : final[i].name[j] , gender : final[i].gender[j] , dayofbirth : final[i].dayofbirth[j] ,country : final[i].country[j],flightcode : final[i].flightcode[j], start_date :  final[i].start_date, end_date :  final[i].end_date  , remainingDate})
+                    }
+              } 
+              
+
+              
+
+              for(let e = 0 ; e < response.length ; e++){
+                await db.Immigration.create({name : response[e].name , ref_number,cv_code ,  createAt : new Date(),   gender : response[e].gender , dayofbirth : response[e].dayofbirth , country : response[e].country ,flightcode : response[e].flightcode, start_date : response[e].start_date , end_date : response[e].end_date , remainingDate : response[e].remainingDate})
+              
+              } 
+              
+         }
+
+          }
+
+
+        }
+
+
+        
+        let dataRes =  await db.Immigration.aggregate([
+          {
+            $group: {
+              _id: { name: "$name",ref_number : "$ref_number",  gender: "$gender" , cv_code : "$cv_code", dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" , remainingDate: "$remainingDate" }, 
+              doc: { $first: "$$ROOT" } 
+            }
+          },
+          {
+            $replaceRoot: { newRoot: "$doc" }  
+          }
+        ])
+        res.json(dataRes);
+            
+
           
       }
 
