@@ -9,26 +9,74 @@ const pdf = require('pdf-parse');
 var nodemailer = require("nodemailer")
 var db = require("../mongo/mongo_model");
 const { now } = require('mongoose');
+const sharp = require('sharp');
+const Tesseract = require('tesseract.js');
+const path = require('path');
+const { createWorker } = require('tesseract.js');
+const util = require('util');
+const execPromise = util.promisify(require('child_process').exec);
 
 let upload = multer({
   dest : './public/uploads'
 })
 
+function getFileType(filePath) {
+  return path.extname(filePath).toLowerCase();
+}
+
+function safeExtract(width, height) {
+const top = Math.floor(height * 0.78);   
+const cropHeight = height - top;         
+  
+
+  return {
+    left: 0,
+    top,
+    width,
+    height: cropHeight
+  };
+}
+
+async function normalizeImage(inputPath) {
+  const outputPath = inputPath + '_normalized.png';
+
+  await sharp(inputPath)
+    .rotate()
+    .resize(1000) 
+    .toFormat('png')
+    .toFile(outputPath);
+
+  return outputPath;
+}
+
+
+async function runTesseract(mrzPath) {
+  const tess_loc = 'C:\\Users\\khangnguyen1\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe';
+  const { stdout } = await execPromise(`${tess_loc} "${mrzPath}" stdout -l ocrb`);
+  return stdout.trim();
+}
+
+
+
+
+
+
 /* GET home page. */
 router.get('/get-passenger', async function(req, res, next) {
 
-    let data = await db.Immigration.aggregate([
-      {
-        $group: {
-          _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,cv_code : "$cv_code",  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
-          doc: { $first: "$$ROOT" } 
-        }
-      },
-      {
-        $replaceRoot: { newRoot: "$doc" }  
-      }
-    ])
-    res.json(data)
+    // let data = await db.Immigration.aggregate([
+    //   {
+    //     $group: {
+    //       _id: { name: "$name", ref_number : "$ref_number" , gender: "$gender" ,cv_code : "$cv_code",  dayofbirth: "$dayofbirth" ,  country: "$country" ,  flightcode: "$flightcode" ,  start_date: "$start_date" , end_date: "$end_date" ,remainingDate : "$remainingDate" }, 
+    //       doc: { $first: "$$ROOT" } 
+    //     }
+    //   },
+    //   {
+    //     $replaceRoot: { newRoot: "$doc" }  
+    //   }
+    // ])
+    
+    res.json("hello")
 
 
 });
@@ -44,6 +92,75 @@ router.get('/daily-update', async function(req, res, next) {
 
 
 });
+
+router.post('/proccess-vissa', upload.array('files') , async function(req, res, next) {
+  let result = []
+for (let i = 0 ; i < req.files.length; i ++){
+     const filePath = req.files[i].path;
+      const worker = await createWorker();
+
+  await worker.setParameters({
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<',
+    preserve_interword_spaces: '1'
+  });
+
+  const ext = getFileType(filePath);
+
+  let imagePath = filePath;
+
+
+  imagePath = await normalizeImage(imagePath);
+  const {width, height} = await sharp(imagePath).metadata();
+  let real_size = safeExtract(width , height)
+
+  const mrzPath = imagePath + '_mrz.png';
+
+
+
+  await sharp(imagePath)
+    .extract(real_size)  
+    .grayscale()
+    .normalize()
+    .toFile(mrzPath);
+
+   
+let pc_image = await runTesseract(mrzPath)
+
+ let arr = pc_image.split("\n").filter(i => i !== "")
+ console.log(arr);
+ 
+ 
+
+  if (arr.length !== 2) {
+    return { error: 'Cannot detect MRZ' };
+  }
+
+  const line1 = arr[0].substring(5);
+  const line2 = arr[1];
+
+
+  const name = line1.split('<').filter(i => i != "").join(" ").replace("\r" , "");
+  const pp_code = line2.substring(0,10)
+  
+  const yy = parseInt(line2.substring(13,15)) > 40 ? `19${line2.substring(13,15)}` : `20${line2.substring(13,15)}`
+  const mm = line2.substring(15,17)
+  const dd = line2.substring(17,19)
+  const birthday = `${dd}/${mm}/${yy}`
+      result.push({
+        name ,
+        pp_code,
+        birthday
+      })
+
+
+ }
+
+  
+  res.json(result);
+
+
+});
+
 
 
 
@@ -205,7 +322,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
               let data = await pdf(dataBuffer)        
               let entries = data.text.split("\n").filter(x => x != "")
               let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()
-              let cv_code = entries.filter(i => i.includes("response to the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
+              let cv_code = entries.filter(i => i.includes("the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
               
               for(let i = 0 ; i < entries.length ; i ++){
                     if ( i == entries.length - 1){
@@ -240,12 +357,11 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
         }
        }
 
-       
               
               for(let it  = 0 ; it < result.length ; it++){
                     let format = [...result[it]]
-                    format= format.filter(i => i.includes("following persons are granted") || i === i.toUpperCase() && i .includes("QLXNC") === false || i.includes("Female") || i.includes("Male") )
-                    let userInfor = {}
+                    format= format.filter(i => i.includes("following persons are granted") || (i === i.toUpperCase() && i.includes("QLXNC") === false && i.includes(" ") === true) || i.includes("Female") || i.includes("Male") )
+                    let userInfor = {}  
                     let name = []
                     let gender = []
                     let dayofbirth = []
@@ -258,6 +374,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                             }
                             else if (format[it] === format[it].toUpperCase()){
                                       if(isNaN(Number(format[it])) === true){
+                                        
                                           if(format[it + 1] === format[it + 1].toUpperCase()){
                                             
                                             name.push(`${format[it]} ${format[it + 1]}`)
@@ -272,7 +389,7 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
                                         continue
                                       }
                             }
-                            else{                              
+                            else{            
                               gender.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[1])
                               dayofbirth.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[2])
                               country.push(format[it].match(/(Female|Male)(\d{2}\/\d{2}\/\d{4})([A-Za-z\s\(\)]+?[a-z\)])([A-Z0-9].*)/)[3])
@@ -336,10 +453,8 @@ router.post('/uploadexcel' ,upload.array('files'), async (req,res)=>{
         let dataBuffer = fs_lib.readFileSync(req.files[fs].path);
         let data = await pdf(dataBuffer)
           let entries = data.text.split("\n").filter(x => x != "")
-          let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()
-          let cv_code = entries.filter(i => i.includes("the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
-          
-
+          let refNumber = entries.filter(i => i.includes("Số(Our Ref"))[0].replace(". No" , "").replace(": No" , "").split(":")[1].trim()  
+          let cv_code = cv_code = entries.filter(i => i.includes("the letter number"))[0].match(/\b\d{4}\.\d{4}\b/)[0]
           let start = entries.findIndex(i => i.includes("requesting permission granted"))
           if(!entries[start + 1].includes("follows")){
                 let start_date =  entries[start + 7].trim().match(/từ ngày (\d{2}\/\d{2}\/\d{4}) đến ngày (\d{2}\/\d{2}\/\d{4})/)[1]

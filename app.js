@@ -8,7 +8,8 @@ var bodyParser = require('body-parser')
 var mongoose = require("mongoose")
 
 
-mongoose.connect("mongodb+srv://namkhangnguyendang:oaWRF5g75P3gH6pq@cluster0.cotvo.mongodb.net/new_sky_db?retryWrites=true&w=majority&appName=Cluster0")
+
+// mongoose.connect("mongodb+srv://namkhangnguyendang:oaWRF5g75P3gH6pq@cluster0.cotvo.mongodb.net/new_sky_db?retryWrites=true&w=majority&appName=Cluster0")
 
 
 var indexRouter = require('./routes/index');
